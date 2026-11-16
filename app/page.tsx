@@ -1,69 +1,126 @@
-import Image from "next/image";
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
-export default function Home() {
+import Sidebar from "@/components/Sidebar"
+import { createClient } from "@supabase/supabase-js"
+import DashboardClient from "./DashboardClient"
+
+export default async function HomePage() {
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: orgData } = await supabaseAdmin
+    .from("organizations")
+    .select("id")
+    .limit(1)
+    .single()
+
+  const activeOrgId = orgData?.id || ""
+
+  let semuaTransaksi: any[] = []
+  let semuaProduk: any[] = []
+  let obatMenipis: any[] = []
+  let antreanHariIni: any[] = []
+
+  if (activeOrgId) {
+    const { data: salesData } = await supabaseAdmin
+      .from("sales")
+      .select("id, invoice_number, total_amount, payment_method, created_at")
+      .eq("organization_id", activeOrgId)
+      .ilike("status", "selesai")
+      .order("created_at", { ascending: false })
+
+    if (salesData) {
+      const deduplicated: any[] = []
+      for (const s of salesData) {
+        const waktuSekarang = new Date(s.created_at).getTime()
+        const isDup = deduplicated.some((existing) => {
+          const waktuExisting = new Date(existing.created_at).getTime()
+          const selisihDetik = Math.abs(waktuSekarang - waktuExisting) / 1000
+          return (
+            Number(existing.total_amount) === Number(s.total_amount) &&
+            existing.payment_method === s.payment_method &&
+            selisihDetik <= 60
+          )
+        })
+        if (!isDup) {
+          deduplicated.push(s)
+        }
+      }
+      semuaTransaksi = deduplicated
+    }
+
+    const { data: medData } = await supabaseAdmin
+      .from("medicines")
+      .select("*, medicine_batches(quantity)")
+      .eq("organization_id", activeOrgId)
+      .order("name", { ascending: true })
+
+    if (medData) {
+      semuaProduk = medData.map((med: any) => {
+        const stok =
+          med.medicine_batches?.reduce(
+            (sum: number, batch: any) => sum + Number(batch.quantity || 0),
+            0
+          ) || 0
+        return {
+          nama: med.name,
+          kode: med.code,
+          harga: Number(med.sales_price || 0),
+          stok
+        }
+      })
+
+      obatMenipis = semuaProduk
+        .filter((med: any) => med.stok < 10)
+        .sort((a: any, b: any) => a.stok - b.stok)
+        .slice(0, 6)
+    }
+
+    const witaDateTime = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Makassar" })
+    const witaDate = witaDateTime.split(" ")[0]
+    const startOfDayWITA = `${witaDate}T00:00:00+08:00`
+
+    const { data: visitData } = await supabaseAdmin
+      .from("patient_visits")
+      .select("id, queue_number, status, patients(full_name, patient_number)")
+      .eq("organization_id", activeOrgId)
+      .ilike("status", "menunggu")
+      .gte("visit_date", startOfDayWITA)
+      .order("queue_number", { ascending: true })
+
+    if (visitData) antreanHariIni = visitData
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex min-h-screen bg-[#F8FAFC]">
+      <Sidebar />
+      <div className="flex-1 p-8">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight">Ringkasan Operasional</h1>
+            <p className="text-slate-500 mt-1 font-medium">
+              Pantau performa apotek dan pergerakan stok secara real-time.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <span className="text-sm font-bold text-slate-700">Sistem Online</span>
+          </div>
+        </div>
+
+        <DashboardClient
+          semuaTransaksi={semuaTransaksi}
+          semuaProduk={semuaProduk}
+          antreanHariIni={antreanHariIni}
+          obatMenipis={obatMenipis}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
     </div>
-  );
+  )
 }
