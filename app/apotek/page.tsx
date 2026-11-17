@@ -31,7 +31,6 @@ export default async function ApotekPage() {
     
     if (catData) categories = catData
 
-    // PERBAIKAN: Pemanggilan data dilonggarkan seperti di Dasbor agar tidak terblokir relasi yang belum ketat
     const { data: medData, error: medError } = await supabaseAdmin
       .from("medicines")
       .select("*, medicine_batches(*)")
@@ -171,10 +170,11 @@ export default async function ApotekPage() {
 
         <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 p-8">
           <h2 className="text-lg font-bold text-slate-800 mb-4">Daftar Obat & Rincian Stok</h2>
-          <div className="overflow-x-auto">
+          
+          <div className="overflow-auto max-h-[500px] border border-slate-200 rounded-lg shadow-inner">
             <table className="w-full text-left border-collapse min-w-[900px]">
-              <thead>
-                <tr className="bg-slate-100 border-y border-slate-200 text-slate-600 text-sm">
+              <thead className="sticky top-0 z-20 bg-slate-100 shadow-sm outline outline-1 outline-slate-200">
+                <tr className="text-slate-600 text-sm">
                   <th className="p-4 font-semibold w-1/5">Kode SKU</th>
                   <th className="p-4 font-semibold w-1/4">Informasi Obat</th>
                   <th className="p-4 font-semibold w-1/5">Harga & Satuan</th>
