@@ -228,7 +228,7 @@ export default async function ApotekPage() {
                       </td>
                       <td className="p-4 pt-5">
                         {activeBatches.length > 0 ? (
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-2 max-h-32 overflow-y-auto pr-2">
                             {activeBatches.map((batch: any) => (
                               <div key={batch.id} className="text-xs border border-slate-200 p-2 rounded bg-white shadow-sm flex justify-between items-center group/batch">
                                 <div>
