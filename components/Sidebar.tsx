@@ -2,31 +2,32 @@
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { createBrowserClient } from "@supabase/ssr"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { ambilProfilToko, ambilRolePengguna } from "@/app/pengaturan/actions"
+
+// Cache global di luar siklus render React
+let globalCache = {
+  isInitialized: false,
+  userId: "",
+  role: "",
+  org: null as { name: string, tagline: string, logo_url: string } | null
+}
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const isMounted = useRef(false)
   
-  const [role, setRole] = useState<string>(() => {
-    if (typeof window !== "undefined") return sessionStorage.getItem("ardt_role") || ""
-    return ""
-  })
-  
-  const [org, setOrg] = useState<{ name: string, tagline: string, logo_url: string } | null>(() => {
-    if (typeof window !== "undefined") {
-      const saved = sessionStorage.getItem("ardt_org")
-      if (saved) {
-        try { return JSON.parse(saved) } catch {}
-      }
-    }
-    return null
-  })
+  // STATE BARU: Mengubah warna menu secara instan seketika saat diklik
+  const [activePath, setActivePath] = useState(pathname)
 
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window !== "undefined") return !sessionStorage.getItem("ardt_role")
-    return true
-  })
+  useEffect(() => {
+    // Pastikan warna menu tetap sinkron jika user menggunakan tombol Back/Forward di browser
+    setActivePath(pathname)
+  }, [pathname])
+
+  const [role, setRole] = useState<string>(globalCache.role)
+  const [org, setOrg] = useState(globalCache.org)
+  const [loading, setLoading] = useState<boolean>(!globalCache.isInitialized)
 
   const [supabase] = useState(() =>
     createBrowserClient(
@@ -44,8 +45,11 @@ export default function Sidebar() {
           tagline: dataToko.tagline || "Sistem Manajemen Apotek",
           logo_url: dataToko.logo_url || ""
         }
+        globalCache.org = profilBaru
         setOrg(profilBaru)
-        if (typeof window !== "undefined") sessionStorage.setItem("ardt_org", JSON.stringify(profilBaru))
+        if (typeof window !== "undefined") {
+            sessionStorage.setItem("ardt_org", JSON.stringify(profilBaru))
+        }
       }
     } catch (e) {
       console.log("Gagal memuat profil toko")
@@ -53,11 +57,40 @@ export default function Sidebar() {
   }
 
   useEffect(() => {
-    const fetchData = async () => {
+    if (isMounted.current) return
+    isMounted.current = true
+
+    const sinkronkanData = async () => {
+      if (typeof window !== "undefined" && !globalCache.isInitialized) {
+        const savedOrg = sessionStorage.getItem("ardt_org")
+        const savedRole = sessionStorage.getItem("ardt_role")
+        const savedUid = sessionStorage.getItem("ardt_uid")
+
+        if (savedOrg) {
+          try {
+            const parsed = JSON.parse(savedOrg)
+            globalCache.org = parsed
+            setOrg(parsed)
+          } catch {}
+        }
+        
+        if (savedRole && savedUid) {
+          globalCache.role = savedRole
+          globalCache.userId = savedUid
+          globalCache.isInitialized = true
+          setRole(savedRole)
+          setLoading(false)
+        }
+      }
+
       try {
         const { data: { session } } = await supabase.auth.getSession()
         const user = session?.user
-        if (!user) return
+
+        if (!user) {
+          setLoading(false)
+          return
+        }
 
         const [roleServer, dataToko] = await Promise.all([
           ambilRolePengguna(user.id),
@@ -70,11 +103,15 @@ export default function Sidebar() {
             tagline: dataToko.tagline || "Sistem Manajemen Apotek",
             logo_url: dataToko.logo_url || ""
           }
+          globalCache.org = profilBaru
           setOrg(profilBaru)
           if (typeof window !== "undefined") sessionStorage.setItem("ardt_org", JSON.stringify(profilBaru))
         }
 
-        if (roleServer && roleServer !== role) {
+        if (roleServer && roleServer !== globalCache.role) {
+          globalCache.userId = user.id
+          globalCache.role = roleServer
+          globalCache.isInitialized = true
           setRole(roleServer)
           if (typeof window !== "undefined") {
               sessionStorage.setItem("ardt_uid", user.id)
@@ -82,20 +119,24 @@ export default function Sidebar() {
           }
         }
       } catch (error) {
-        console.log("Gagal membaca data sidebar")
+        console.log("Gagal membaca data sidebar dari server")
       } finally {
         setLoading(false)
+        globalCache.isInitialized = true
       }
     }
 
-    fetchData()
-    
-    const handleUpdate = () => muatProfilToko()
+    sinkronkanData()
+
+    const handleUpdate = () => {
+      muatProfilToko()
+    }
     window.addEventListener("profil-toko-diperbarui", handleUpdate)
     return () => window.removeEventListener("profil-toko-diperbarui", handleUpdate)
-  }, [supabase, role])
+  }, [supabase])
 
   const handleLogout = async () => {
+    globalCache = { isInitialized: false, userId: "", role: "", org: null }
     if (typeof window !== "undefined") {
         sessionStorage.removeItem("ardt_uid")
         sessionStorage.removeItem("ardt_role")
@@ -180,11 +221,12 @@ export default function Sidebar() {
           </div>
         ) : filteredMenu.length > 0 ? (
           filteredMenu.map((item) => {
-            const isActive = pathname === item.path
+            const isActive = activePath === item.path
             return (
               <Link 
                 key={item.name} 
                 href={item.path}
+                onClick={() => setActivePath(item.path)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive 
                     ? "bg-blue-600 text-white" 
