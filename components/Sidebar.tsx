@@ -11,6 +11,8 @@ let memoriOrg: { name: string, tagline: string, logo_url: string } | null = null
 
 export default function Sidebar() {
   const pathname = usePathname()
+  
+  // Set nilai awal dari memori global jika ada untuk mencegah kedip
   const [role, setRole] = useState<string>(memoriRole)
   const [org, setOrg] = useState<{ name: string, tagline: string, logo_url: string } | null>(memoriOrg)
   const [loading, setLoading] = useState<boolean>(!memoriRole)
@@ -33,7 +35,9 @@ export default function Sidebar() {
         }
         memoriOrg = profilBaru
         setOrg(profilBaru)
-        sessionStorage.setItem("ardt_org", JSON.stringify(profilBaru))
+        if (typeof window !== "undefined") {
+            sessionStorage.setItem("ardt_org", JSON.stringify(profilBaru))
+        }
       }
     } catch (e) {
       console.log("Gagal memuat profil toko")
@@ -41,15 +45,28 @@ export default function Sidebar() {
   }
 
   useEffect(() => {
-    const simpananOrg = sessionStorage.getItem("ardt_org")
-    if (simpananOrg && !memoriOrg) {
-      try {
-        const parsed = JSON.parse(simpananOrg)
-        memoriOrg = parsed
-        setOrg(parsed)
-      } catch {}
+    // 1. Baca data dari SessionStorage HANYA jika memori global kosong
+    if (!memoriOrg && typeof window !== "undefined") {
+        const simpananOrg = sessionStorage.getItem("ardt_org")
+        if (simpananOrg) {
+            try {
+                const parsed = JSON.parse(simpananOrg)
+                memoriOrg = parsed
+                setOrg(parsed)
+            } catch {}
+        }
+    }
+    
+    if (!memoriRole && typeof window !== "undefined") {
+        const simpananRole = sessionStorage.getItem("ardt_role")
+        if (simpananRole) {
+            memoriRole = simpananRole
+            setRole(simpananRole)
+            setLoading(false)
+        }
     }
 
+    // 2. Ambil data asli dari server
     const fetchData = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -60,16 +77,9 @@ export default function Sidebar() {
           return
         }
 
-        const simpananUserId = sessionStorage.getItem("ardt_uid")
-        const simpananRole = sessionStorage.getItem("ardt_role")
+        const simpananUserId = typeof window !== "undefined" ? sessionStorage.getItem("ardt_uid") : null
 
-        if (simpananUserId === user.id && simpananRole) {
-          memoriUserId = user.id
-          memoriRole = simpananRole
-          setRole(simpananRole)
-          setLoading(false)
-        }
-
+        // Ambil data dari server
         const [roleServer, dataToko] = await Promise.all([
           ambilRolePengguna(user.id),
           ambilProfilToko()
@@ -83,15 +93,17 @@ export default function Sidebar() {
           }
           memoriOrg = profilBaru
           setOrg(profilBaru)
-          sessionStorage.setItem("ardt_org", JSON.stringify(profilBaru))
+          if (typeof window !== "undefined") sessionStorage.setItem("ardt_org", JSON.stringify(profilBaru))
         }
 
         if (roleServer) {
           memoriUserId = user.id
           memoriRole = roleServer
           setRole(roleServer)
-          sessionStorage.setItem("ardt_uid", user.id)
-          sessionStorage.setItem("ardt_role", roleServer)
+          if (typeof window !== "undefined") {
+              sessionStorage.setItem("ardt_uid", user.id)
+              sessionStorage.setItem("ardt_role", roleServer)
+          }
         }
       } catch (error) {
         console.log("Gagal membaca data sidebar")
@@ -112,8 +124,12 @@ export default function Sidebar() {
   const handleLogout = async () => {
     memoriUserId = ""
     memoriRole = ""
-    sessionStorage.removeItem("ardt_uid")
-    sessionStorage.removeItem("ardt_role")
+    memoriOrg = null
+    if (typeof window !== "undefined") {
+        sessionStorage.removeItem("ardt_uid")
+        sessionStorage.removeItem("ardt_role")
+        sessionStorage.removeItem("ardt_org")
+    }
     await supabase.auth.signOut()
     window.location.href = "/login"
   }
