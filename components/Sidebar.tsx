@@ -1,8 +1,7 @@
 "use client"
-import { usePathname } from "next/navigation"
-import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
 import { createBrowserClient } from "@supabase/ssr"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useTransition } from "react"
 import { ambilProfilToko, ambilRolePengguna } from "@/app/pengaturan/actions"
 
 let globalCache = {
@@ -14,7 +13,9 @@ let globalCache = {
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const isMounted = useRef(false)
+  const [isPending, startTransition] = useTransition()
   
   const [activePath, setActivePath] = useState(pathname)
 
@@ -141,7 +142,17 @@ export default function Sidebar() {
     window.location.href = "/login"
   }
 
-  // JIKA DI HALAMAN LOGIN, SIDEBAR OTOMATIS MENGHILANG
+  // Fungsi navigasi yang lebih instan 
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
+    e.preventDefault(); 
+    // Segera ubah tampilan UI lokal terlebih dahulu
+    setActivePath(path);
+    // Lalu beri tahu Next.js untuk menarik halaman baru di latar belakang tanpa freeze
+    startTransition(() => {
+        router.push(path);
+    });
+  }
+
   if (pathname === "/login") return null;
 
   const menuItems = [
@@ -181,19 +192,19 @@ export default function Sidebar() {
           filteredMenu.map((item) => {
             const isActive = activePath === item.path
             return (
-              <Link 
+              <a 
                 key={item.name} 
                 href={item.path}
-                onClick={() => setActivePath(item.path)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                onClick={(e) => handleNavClick(e, item.path)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
                   isActive ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                }`}
+                } ${isPending ? "opacity-90" : ""}`}
               >
                 <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} />
                 </svg>
                 <span className="font-medium">{item.name}</span>
-              </Link>
+              </a>
             )
           })
         ) : (
