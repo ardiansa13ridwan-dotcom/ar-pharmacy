@@ -32,6 +32,5 @@ export default async function LaporanPage() {
           <LaporanClient orgId={activeOrgId} org={orgData} />
         </main>
       </div>
-    </div>
   )
 }

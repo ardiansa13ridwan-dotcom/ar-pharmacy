@@ -52,6 +52,5 @@ export default async function PendaftaranPage() {
 
         <PendaftaranClient orgId={activeOrgId} patients={patients} activeVisits={activeVisits} />
       </div>
-    </div>
   )
 }

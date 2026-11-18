@@ -119,6 +119,5 @@ export default async function HomePage() {
           obatMenipis={obatMenipis}
         />
       </div>
-    </div>
   )
 }

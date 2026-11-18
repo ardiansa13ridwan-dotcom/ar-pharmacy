@@ -87,6 +87,5 @@ export default async function KasirPage() {
           />
         </div>
       </div>
-    </div>
   )
 }

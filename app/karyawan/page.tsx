@@ -162,6 +162,5 @@ export default async function KaryawanPage() {
 
         </div>
       </div>
-    </div>
   )
 }

@@ -57,6 +57,5 @@ export default async function RekamMedisPage() {
           <RekamMedisClient antrean={antreanList} obat={obatList} orgId={activeOrgId} />
         </main>
       </div>
-    </div>
   )
 }

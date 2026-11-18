@@ -25,6 +25,5 @@ export default async function PengaturanPage() {
 
         <PengaturanClient org={orgData} />
       </div>
-    </div>
   )
 }
