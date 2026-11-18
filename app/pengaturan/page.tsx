@@ -17,8 +17,6 @@ export default async function PengaturanPage() {
     .single()
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
-      <Sidebar />
       <div className="flex-1 p-8">
         <div className="mb-8">
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Pengaturan Toko</h1>

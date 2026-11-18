@@ -47,8 +47,6 @@ export default async function RekamMedisPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#0f172a]">
-      <Sidebar />
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-[#1e293b] border-b border-slate-700 px-8 py-6 shadow-xl">
           <h1 className="text-2xl font-bold text-blue-400 tracking-tight">Rekam Medis</h1>

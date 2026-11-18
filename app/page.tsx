@@ -95,8 +95,6 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
-      <Sidebar />
       <div className="flex-1 p-8">
         <div className="flex justify-between items-end mb-8">
           <div>

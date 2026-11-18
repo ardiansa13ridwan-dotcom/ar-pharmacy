@@ -73,8 +73,6 @@ export default async function KasirPage() {
   const KasirView: any = KasirClient
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
       <div className="flex-1 p-8">
         <div className="max-w-6xl mx-auto mb-8">
           <h1 className="text-2xl font-bold text-slate-800 mb-2">Kasir Point of Sale (POS)</h1>
